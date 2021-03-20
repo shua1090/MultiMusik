@@ -1,12 +1,13 @@
 import javax.sound.sampled.*;
 import java.io.*;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.CyclicBarrier;
-import java.util.logging.Handler;
 
 public class server {
 
@@ -14,24 +15,20 @@ public class server {
     AudioInputStream din;
     public static songPlayer pal;
 
-    static byte[] visibleData = new byte[4096];
-
-    Queue<byte[]> semaphore = new LinkedList<byte[]>();
-
     public CyclicBarrier latch;
 
     ArrayList<Thread> theList = new ArrayList<Thread>();
-    ArrayList<handler> handlerList = new ArrayList<>();
+    ArrayList<sender> senderList = new ArrayList<>();
 
     server(String songPath) {
-//        File file = new File(songPath);
+        File file = new File(songPath);
 
         AudioInputStream in = null;
         try {
             URL z = getClass().getResource(songPath);
             System.out.println(z);
-            in = AudioSystem.getAudioInputStream(
-                    new BufferedInputStream(getClass().getResourceAsStream(songPath))
+            in = AudioSystem.getAudioInputStream(file
+//                    new BufferedInputStream(getClass().getResourceAsStream(songPath))
             );
         } catch (UnsupportedAudioFileException | IOException e) {
             e.printStackTrace();
@@ -63,48 +60,52 @@ public class server {
 
         System.out.println("Entering loop");
 
-//        var pine = getLine(decodedFormat);
-        new Thread(()->{
-            try {
-                rawplay(din);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }).start();
-
-
         int i = 0;
 
         latch = new CyclicBarrier(1);
 
         System.out.println("Adding handlers");
         for (i = 0; i < 1; i++){
-            handler k = new handler(i, latch);
-            theList.add(new Thread(k));
-            handlerList.add(k);
+
+            Socket c = null;
+
+            try {
+                c = sock.accept();
+                System.out.println("Accepted");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            assert c != null;
+
+            sender k = new sender(i, latch, c);
+
+            k.sendSongData(decodedFormat.getSampleRate(), decodedFormat.getChannels());
+
+//            theList.add(new Thread(k));
+            senderList.add(k);
         }
 
+        try {
+            rawplay(din);
 
-//        var k = new handler();
-//        theList.add(k);
-//
-//        var z = new handler();
-//        theList.add(z);
-
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
     }
 
     void updateHandlerQueue(byte[] bar){
-        for (int i = 0; i < handlerList.size(); i++){
-            handlerList.get(i).add(bar);
-            var k = new Thread(handlerList.get(i));
+        for (int i = 0; i < senderList.size(); i++){
+            senderList.get(i).add(bar);
+            var k = new Thread(senderList.get(i));
             k.start();
 
-            System.out.println("Number waiting: " + latch.getNumberWaiting());
-            System.out.println("Parties: " + latch.getParties());
+//            System.out.println("Number waiting: " + latch.getNumberWaiting());
+//            System.out.println("Parties: " + latch.getParties());
 
-            if (i == handlerList.size() - 1){
-                System.out.println("Joining");
+            if (i == senderList.size() - 1){
+//                System.out.println("Joining");
                 try {
                     k.join();
                 } catch (InterruptedException e) {
@@ -113,10 +114,8 @@ public class server {
             }
         }
 
-
-        System.out.println("Number waiting: " + latch.getNumberWaiting());
-        System.out.println("Parties: " + latch.getParties());
-
+//        System.out.println("Number waiting: " + latch.getNumberWaiting());
+//        System.out.println("Parties: " + latch.getParties());
     }
 
 
@@ -157,7 +156,7 @@ public class server {
     }
 
     public static void main(String[] args) {
-        new server("Sol Squadron - Ace Combat 7.mp3");
+        new server(args[0]);
     }
 
 }
