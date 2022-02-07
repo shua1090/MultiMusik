@@ -1,5 +1,5 @@
 # MultiMusik
-Play Music on many different devices at once! MultiMusik sends audio packets through sockets to any amount of devices - A cheap and effective Home Audio Solution for the masses!
+Play Music on many different devices at once. MultiMusik sends audio packets through sockets to any amount of devices - A cheap and effective Home Audio Solution for the masses.
 
 
 
